@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon
+  id="inputstream.nxmsl"
+  version="1.0.0"
+  name="InputStream nxmsl"
+  provider-name="peak3d">
+  <requires>
+    <import addon="kodi.inputstream" version="1.0.4"/>
+  </requires>
+  <extension
+    point="kodi.inputstream"
+    name="nxmsl"
+    extension=""
+    tags="true"
+    listitemprops="license_type|license_key"
+    library_@PLATFORM@="@LIBRARY_FILENAME@"/>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en">InputStream Client for Netflix style manifests over MSL</summary>
+    <description lang="en">InputStream Client for Netflix style manifests over MSL</description>
+    <platform>@PLATFORM@</platform>
+  </extension>
+</addon>
