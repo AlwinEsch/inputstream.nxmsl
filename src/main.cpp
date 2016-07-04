@@ -16,7 +16,7 @@
  *
  */
 
-#include "MainDash.h"
+#include "main.h"
 
 #include <iostream>
 #include <stdio.h>
@@ -123,14 +123,14 @@ class AP4_DASHStream : public AP4_ByteStream
 {
 public:
   // Constructor
-  AP4_DASHStream(dash::DASHStream *dashStream) :dash_stream_(dashStream){};
+  AP4_DASHStream(manifest::Stream *s) :stream_(s){};
 
   // AP4_ByteStream methods
   AP4_Result ReadPartial(void*    buffer,
     AP4_Size  bytesToRead,
     AP4_Size& bytesRead) override
   {
-    bytesRead = dash_stream_->read(buffer, bytesToRead);
+    bytesRead = stream_->read(buffer, bytesToRead);
     return bytesRead > 0 ? AP4_SUCCESS : AP4_ERROR_READ_FAILED;
   };
   AP4_Result WritePartial(const void* buffer,
@@ -142,11 +142,11 @@ public:
   };
   AP4_Result Seek(AP4_Position position) override
   {
-    return dash_stream_->seek(position) ? AP4_SUCCESS : AP4_ERROR_NOT_SUPPORTED;
+    return stream_->seek(position) ? AP4_SUCCESS : AP4_ERROR_NOT_SUPPORTED;
   };
   AP4_Result Tell(AP4_Position& position) override
   {
-    position = dash_stream_->tell();
+    position = stream_->tell();
     return AP4_SUCCESS;
   };
   AP4_Result GetSize(AP4_LargeSize& size) override
@@ -159,14 +159,14 @@ public:
   void Release()override      {};
 protected:
   // members
-  dash::DASHStream *dash_stream_;
+  manifest::Stream *stream_;
 };
 
 /*******************************************************
 Kodi Streams implementation
 ********************************************************/
 
-bool KodiDASHTree::download(const char* url)
+bool KodiTree::download(const char* url)
 {
   // open the file
   void* file = xbmc->CURLCreate(url);
@@ -191,7 +191,7 @@ bool KodiDASHTree::download(const char* url)
   return nbRead == 0;
 }
 
-bool KodiDASHStream::download(const char* url, const char* rangeHeader)
+bool KodiStream::download(const char* url, const char* rangeHeader)
 {
   // open the file
   void* file = xbmc->CURLCreate(url);
@@ -226,7 +226,7 @@ bool KodiDASHStream::download(const char* url, const char* rangeHeader)
   return nbRead == 0;
 }
 
-bool KodiDASHStream::parseIndexRange()
+bool KodiStream::parseIndexRange()
 {
   // open the file
   xbmc->Log(ADDON::LOG_DEBUG, "Downloading %s for SIDX generation", getRepresentation()->url_.c_str());
@@ -267,13 +267,13 @@ bool KodiDASHStream::parseIndexRange()
   }
   AP4_SidxAtom *sidx(AP4_DYNAMIC_CAST(AP4_SidxAtom, atom));
 
-  dash::DASHTree::AdaptationSet *adp(const_cast<dash::DASHTree::AdaptationSet*>(getAdaptationSet()));
-  dash::DASHTree::Representation *rep(const_cast<dash::DASHTree::Representation*>(getRepresentation()));
+  manifest::Tree::AdaptationSet *adp(const_cast<manifest::Tree::AdaptationSet*>(getAdaptationSet()));
+  manifest::Tree::Representation *rep(const_cast<manifest::Tree::Representation*>(getRepresentation()));
 
   rep->timescale_ = sidx->GetTimeScale();
 
   const AP4_Array<AP4_SidxAtom::Reference> &reps(sidx->GetReferences());
-  dash::DASHTree::Segment seg;
+  manifest::Tree::Segment seg;
   seg.range_end_ = rep->indexRangeMax_;
 
   for (unsigned int i(0); i < reps.ItemCount(); ++i)
@@ -817,7 +817,7 @@ bool Session::initialize()
   }
   xbmc->Log(ADDON::LOG_INFO, "Successfully parsed .mpd file. #Streams: %d Download speed: %0.4f Bytes/s", dashtree_.periods_[0]->adaptationSets_.size(), dashtree_.download_speed_);
 
-  if (dashtree_.encryptionState_ == dash::DASHTree::ENCRYTIONSTATE_ENCRYPTED)
+  if (dashtree_.encryptionState_ == manifest::Tree::ENCRYTIONSTATE_ENCRYPTED)
   {
     xbmc->Log(ADDON::LOG_ERROR, "Unable to handle decryption. Unsupported!");
     return false;
@@ -832,7 +832,7 @@ bool Session::initialize()
 
   // create SESSION::STREAM objects. One for each AdaptationSet
   unsigned int i(0);
-  const dash::DASHTree::AdaptationSet *adp;
+  const manifest::Tree::AdaptationSet *adp;
 
   for (std::vector<STREAM*>::iterator b(streams_.begin()), e(streams_.end()); b != e; ++b)
     SAFE_DELETE(*b);
@@ -849,13 +849,13 @@ bool Session::initialize()
 
       switch (adp->type_)
       {
-      case dash::DASHTree::VIDEO:
+      case manifest::Tree::VIDEO:
         stream.info_.m_streamType = INPUTSTREAM_INFO::TYPE_VIDEO;
         break;
-      case dash::DASHTree::AUDIO:
+      case manifest::Tree::AUDIO:
         stream.info_.m_streamType = INPUTSTREAM_INFO::TYPE_AUDIO;
         break;
-      case dash::DASHTree::TEXT:
+      case manifest::Tree::TEXT:
         stream.info_.m_streamType = INPUTSTREAM_INFO::TYPE_TELETEXT;
         break;
       default:
@@ -936,7 +936,7 @@ bool Session::initialize()
 
 void Session::UpdateStream(STREAM &stream)
 {
-  const dash::DASHTree::Representation *rep(stream.stream_.getRepresentation());
+  const manifest::Tree::Representation *rep(stream.stream_.getRepresentation());
 
   stream.info_.m_Width = rep->width_;
   stream.info_.m_Height = rep->height_;
@@ -1232,7 +1232,7 @@ extern "C" {
       stream->enabled = true;
 
       stream->stream_.start_stream(0, session->GetWidth(), session->GetHeight());
-      const dash::DASHTree::Representation *rep(stream->stream_.getRepresentation());
+      const manifest::Tree::Representation *rep(stream->stream_.getRepresentation());
       xbmc->Log(ADDON::LOG_DEBUG, "Selecting stream with conditions: w: %u, h: %u, bw: %u", 
         stream->stream_.getWidth(), stream->stream_.getHeight(), stream->stream_.getBandwidth());
       stream->stream_.select_stream(true, false, stream->info_.m_pID >> 16);
@@ -1251,7 +1251,7 @@ extern "C" {
         return stream->disable();
       }
 
-      static const AP4_Track::Type TIDC[dash::DASHTree::STREAM_TYPE_COUNT] =
+      static const AP4_Track::Type TIDC[manifest::Tree::STREAM_TYPE_COUNT] =
       { AP4_Track::TYPE_UNKNOWN, AP4_Track::TYPE_VIDEO, AP4_Track::TYPE_AUDIO, AP4_Track::TYPE_TEXT };
 
       AP4_Track *track = movie->GetTrack(TIDC[stream->stream_.get_type()]);

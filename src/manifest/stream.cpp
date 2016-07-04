@@ -1,5 +1,5 @@
 /*
-* DashStream.cpp
+* Stream.cpp
 *****************************************************************************
 * Copyright(C) 2015, liberty_developer
 *
@@ -9,16 +9,16 @@
 * and conditions of the applicable license agreement.
 *****************************************************************************/
 
-#include "DASHStream.h"
+#include "stream.h"
 
 #include <iostream>
 #include <cstring>
 #include "../oscompat.h"
 #include <math.h>
 
-using namespace dash;
+using namespace manifest;
 
-DASHStream::DASHStream(DASHTree &tree, DASHTree::StreamType type)
+Stream::Stream(Tree &tree, Tree::StreamType type)
   :tree_(tree)
   , type_(type)
   , observer_(0)
@@ -28,7 +28,7 @@ DASHStream::DASHStream(DASHTree &tree, DASHTree::StreamType type)
 {
 }
 
-bool DASHStream::download_segment()
+bool Stream::download_segment()
 {
   segment_buffer_.clear();
   absolute_position_ = 0;
@@ -40,9 +40,9 @@ bool DASHStream::download_segment()
   std::string strURL;
   char rangebuf[128], *rangeHeader(0);
 
-  if (!(current_rep_->flags_ & DASHTree::Representation::INDEXRANGEEXACT))
+  if (!(current_rep_->flags_ & Tree::Representation::INDEXRANGEEXACT))
   {
-    if (!(current_rep_->flags_ & DASHTree::Representation::TEMPLATE))
+    if (!(current_rep_->flags_ & Tree::Representation::TEMPLATE))
     {
       sprintf(rangebuf, "/range/%" PRIu64 "-%" PRIu64, current_seg_->range_begin_, current_seg_->range_end_);
       strURL = current_rep_->url_ + rangebuf;
@@ -89,18 +89,18 @@ bool DASHStream::download_segment()
   return download(strURL.c_str(), rangeHeader);
 }
 
-bool DASHStream::write_data(const void *buffer, size_t buffer_size)
+bool Stream::write_data(const void *buffer, size_t buffer_size)
 {
   segment_buffer_ += std::string((const char *)buffer, buffer_size);
   return true;
 }
 
-bool DASHStream::prepare_stream(const DASHTree::AdaptationSet *adp,
+bool Stream::prepare_stream(const Tree::AdaptationSet *adp,
   const uint32_t width, const uint32_t height,
   uint32_t min_bandwidth, uint32_t max_bandwidth, unsigned int repId)
 {
-  width_ = type_ == DASHTree::VIDEO ? width : 0;
-  height_ = type_ == DASHTree::VIDEO ? height : 0;
+  width_ = type_ == Tree::VIDEO ? width : 0;
+  height_ = type_ == Tree::VIDEO ? height : 0;
 
   uint32_t avg_bandwidth = tree_.bandwidth_;
 
@@ -112,14 +112,14 @@ bool DASHStream::prepare_stream(const DASHTree::AdaptationSet *adp,
 
   stopped_ = false;
 
-  bandwidth_ = static_cast<uint32_t>(bandwidth_ *(type_ == DASHTree::VIDEO ? 0.9 : 0.1));
+  bandwidth_ = static_cast<uint32_t>(bandwidth_ *(type_ == Tree::VIDEO ? 0.9 : 0.1));
 
   current_adp_ = adp;
 
   return select_stream(false, true, repId);
 }
 
-bool DASHStream::start_stream(const uint32_t seg_offset, uint16_t width, uint16_t height)
+bool Stream::start_stream(const uint32_t seg_offset, uint16_t width, uint16_t height)
 {
   segment_buffer_.clear();
   current_seg_ = current_rep_->get_segment(seg_offset);
@@ -130,8 +130,8 @@ bool DASHStream::start_stream(const uint32_t seg_offset, uint16_t width, uint16_
   }
   else
   {
-    width_ = type_ == DASHTree::VIDEO ? width : 0;
-    height_ = type_ == DASHTree::VIDEO ? height : 0;
+    width_ = type_ == Tree::VIDEO ? width : 0;
+    height_ = type_ == Tree::VIDEO ? height : 0;
 
     absolute_position_ = current_rep_->get_next_segment(current_seg_)->range_begin_;
     stopped_ = false;
@@ -139,7 +139,7 @@ bool DASHStream::start_stream(const uint32_t seg_offset, uint16_t width, uint16_
   return true;
 }
 
-uint32_t DASHStream::read(void* buffer, uint32_t  bytesToRead)
+uint32_t Stream::read(void* buffer, uint32_t  bytesToRead)
 {
   if (stopped_)
     return 0;
@@ -164,7 +164,7 @@ uint32_t DASHStream::read(void* buffer, uint32_t  bytesToRead)
   return 0;
 }
 
-bool DASHStream::seek(uint64_t const pos)
+bool Stream::seek(uint64_t const pos)
 {
   // we seek only in the current segment
   if (pos >= absolute_position_ - segment_read_pos_)
@@ -181,7 +181,7 @@ bool DASHStream::seek(uint64_t const pos)
   return false;
 }
 
-bool DASHStream::seek_time(double seek_seconds, double current_seconds, bool &needReset)
+bool Stream::seek_time(double seek_seconds, double current_seconds, bool &needReset)
 {
   if (!current_rep_)
     return false;
@@ -195,10 +195,10 @@ bool DASHStream::seek_time(double seek_seconds, double current_seconds, bool &ne
     while (choosen_seg < current_adp_->segment_durations_.size() && sec_in_ts > current_adp_->segment_durations_[choosen_seg])
       sec_in_ts -= current_adp_->segment_durations_[choosen_seg++];
   } 
-  else if (current_rep_->flags_ & DASHTree::Representation::TIMELINE)
+  else if (current_rep_->flags_ & Tree::Representation::TIMELINE)
   {
     uint64_t sec_in_ts = static_cast<uint64_t>(seek_seconds * current_rep_->segtpl_.timescale);
-    choosen_seg = (current_rep_->flags_ & DASHTree::Representation::INITIALIZATION)!=0 ? 1 : 0; //Skip initialization
+    choosen_seg = (current_rep_->flags_ & Tree::Representation::INITIALIZATION)!=0 ? 1 : 0; //Skip initialization
     while (choosen_seg < current_rep_->segments_.size() && sec_in_ts > current_rep_->segments_[choosen_seg].range_begin_)
       ++choosen_seg;
   }
@@ -207,7 +207,7 @@ bool DASHStream::seek_time(double seek_seconds, double current_seconds, bool &ne
     uint64_t sec_in_ts = static_cast<uint64_t>(seek_seconds * current_rep_->timescale_);
     choosen_seg = static_cast<uint32_t>(sec_in_ts / current_rep_->duration_);
   }
-  const DASHTree::Segment* old_seg(current_seg_);
+  const Tree::Segment* old_seg(current_seg_);
   if ((current_seg_ = current_rep_->get_segment(choosen_seg, true)))
   {
     needReset = true;
@@ -227,9 +227,9 @@ bool DASHStream::seek_time(double seek_seconds, double current_seconds, bool &ne
   return false;
 }
 
-bool DASHStream::select_stream(bool force, bool justInit, unsigned int repId)
+bool Stream::select_stream(bool force, bool justInit, unsigned int repId)
 {
-  const DASHTree::Representation *new_rep(0), *min_rep(0);
+  const Tree::Representation *new_rep(0), *min_rep(0);
 
   if (force && absolute_position_ == 0) //already selected
     return true;
@@ -238,7 +238,7 @@ bool DASHStream::select_stream(bool force, bool justInit, unsigned int repId)
   {
     unsigned int bestScore(~0);
 
-    for (std::vector<DASHTree::Representation*>::const_iterator br(current_adp_->repesentations_.begin()), er(current_adp_->repesentations_.end()); br != er; ++br)
+    for (std::vector<Tree::Representation*>::const_iterator br(current_adp_->repesentations_.begin()), er(current_adp_->repesentations_.end()); br != er; ++br)
     {
       if ((*br)->bandwidth_ <= bandwidth_)
       {
@@ -279,7 +279,7 @@ bool DASHStream::select_stream(bool force, bool justInit, unsigned int repId)
   /* If we have indexRangeExact SegmentBase, update SegmentList from SIDX */
   if (current_rep_->indexRangeMax_)
   {
-    DASHTree::Representation *rep(const_cast<DASHTree::Representation *>(current_rep_));
+    Tree::Representation *rep(const_cast<Tree::Representation *>(current_rep_));
     if (!parseIndexRange())
       return false;
     rep->indexRangeMin_ = rep->indexRangeMax_ = 0;
@@ -294,19 +294,19 @@ bool DASHStream::select_stream(bool force, bool justInit, unsigned int repId)
   return false;
 }
 
-void DASHStream::info(std::ostream &s)
+void Stream::info(std::ostream &s)
 {
   static const char* ts[4] = { "NoType", "Video", "Audio", "Text" };
   s << ts[type_] << " representation: " << current_rep_->url_.substr(current_rep_->url_.find_last_of('/') + 1) << " bandwidth: " << current_rep_->bandwidth_ << std::endl;
 }
 
-void DASHStream::clear()
+void Stream::clear()
 {
   current_adp_ = 0;
   current_rep_ = 0;
 }
 
-DASHStream::~DASHStream()
+Stream::~Stream()
 {
   clear();
 }

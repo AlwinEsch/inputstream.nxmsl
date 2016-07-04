@@ -14,11 +14,10 @@
 #include <vector>
 #include <string>
 #include <inttypes.h>
-#include "expat.h"
 
-namespace dash
+namespace manifest
 {
-  class DASHTree
+  class Tree
   {
   public:
     enum StreamType
@@ -121,10 +120,6 @@ namespace dash
     std::vector<Period*> periods_;
     std::string base_url_;
 
-    /* XML Parsing*/
-    XML_Parser parser_;
-    uint32_t currentNode_;
-    uint32_t segcount_;
     double overallSeconds_;
 
     uint32_t bandwidth_;
@@ -161,8 +156,8 @@ namespace dash
     };
     std::string strXMLText_;
 
-    DASHTree();
-    ~DASHTree();
+    Tree();
+    ~Tree();
     bool open(const char *url);
     bool has_type(StreamType t);
     uint32_t estimate_segcount(uint32_t duration, uint32_t timescale);

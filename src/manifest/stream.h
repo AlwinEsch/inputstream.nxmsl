@@ -11,26 +11,26 @@
 
 #pragma once
 
-#include "DASHTree.h"
+#include "tree.h"
 #include <string>
 
-namespace dash
+namespace manifest
 {
-  class DASHStream;
+  class Stream;
 
-  class DASHStreamObserver
+  class StreamObserver
   {
   public:
-    virtual void OnStreamChange(DASHStream *stream, uint32_t segment) = 0;
+    virtual void OnStreamChange(Stream *stream, uint32_t segment) = 0;
   };
 
-  class DASHStream
+  class Stream
   {
   public:
-    DASHStream(DASHTree &tree, DASHTree::StreamType type);
-    ~DASHStream();
-    void set_observer(DASHStreamObserver *observer){ observer_ = observer; };
-    bool prepare_stream(const DASHTree::AdaptationSet *adp,
+    Stream(Tree &tree, Tree::StreamType type);
+    ~Stream();
+    void set_observer(StreamObserver *observer){ observer_ = observer; };
+    bool prepare_stream(const Tree::AdaptationSet *adp,
       const uint32_t width, const uint32_t height,
       uint32_t min_bandwidth, uint32_t max_bandwidth, unsigned int repId);
     bool start_stream(const uint32_t seg_offset, uint16_t width, uint16_t height);
@@ -49,8 +49,8 @@ namespace dash
     uint64_t tell(){ read(0, 0);  return absolute_position_; };
     bool seek(uint64_t const pos);
     bool seek_time(double seek_seconds, double current_seconds, bool &needReset);
-    DASHTree::AdaptationSet const *getAdaptationSet() { return current_adp_; };
-    DASHTree::Representation const *getRepresentation(){ return current_rep_; };
+    Tree::AdaptationSet const *getAdaptationSet() { return current_adp_; };
+    Tree::Representation const *getRepresentation(){ return current_rep_; };
     double get_download_speed() const { return tree_.get_download_speed(); };
     void set_download_speed(double speed) { tree_.set_download_speed(speed); };
   protected:
@@ -60,14 +60,14 @@ namespace dash
   private:
     bool download_segment();
 
-    DASHTree &tree_;
-    DASHTree::StreamType type_;
-    DASHStreamObserver *observer_;
+    Tree &tree_;
+    Tree::StreamType type_;
+    StreamObserver *observer_;
     // Active configuration
-    const DASHTree::Period *current_period_;
-    const DASHTree::AdaptationSet *current_adp_;
-    const DASHTree::Representation *current_rep_;
-    const DASHTree::Segment *current_seg_;
+    const Tree::Period *current_period_;
+    const Tree::AdaptationSet *current_adp_;
+    const Tree::Representation *current_rep_;
+    const Tree::Segment *current_seg_;
     //We assume that a single segment can build complete frames
     std::string segment_buffer_;
     std::size_t segment_read_pos_;

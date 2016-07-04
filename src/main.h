@@ -19,8 +19,8 @@
 
 #include <vector>
 
-#include "dash/DASHTree.h"
-#include "dash/DASHStream.h"
+#include "manifest/tree.h"
+#include "manifest/stream.h"
 
 #include "Ap4.h"
 
@@ -51,17 +51,17 @@ namespace XBMCFILE
 Kodi Streams implementation
 ********************************************************/
 
-class KodiDASHTree : public dash::DASHTree
+class KodiTree : public manifest::Tree
 {
 protected:
   virtual bool download(const char* url);
 };
 
-class KodiDASHStream : public dash::DASHStream
+class KodiStream : public manifest::Stream
 {
 public:
-  KodiDASHStream(dash::DASHTree &tree, dash::DASHTree::StreamType type)
-    :dash::DASHStream(tree, type){};
+  KodiStream(manifest::Tree &tree, manifest::Tree::StreamType type)
+    :manifest::Stream(tree, type){};
 protected:
   virtual bool download(const char* url, const char* rangeHeader) override;
   virtual bool parseIndexRange() override;
@@ -77,13 +77,13 @@ public:
 
   struct STREAM
   {
-    STREAM(dash::DASHTree &t, dash::DASHTree::StreamType s) :stream_(t, s), enabled(false), current_segment_(0), input_(0), reader_(0), input_file_(0) { memset(&info_, 0, sizeof(info_)); };
+    STREAM(manifest::Tree &t, manifest::Tree::StreamType s) :stream_(t, s), enabled(false), current_segment_(0), input_(0), reader_(0), input_file_(0) { memset(&info_, 0, sizeof(info_)); };
     ~STREAM() { disable(); free((void*)info_.m_ExtraData); };
     void disable();
 
     bool enabled;
     uint32_t current_segment_;
-    KodiDASHStream stream_;
+    KodiStream stream_;
     AP4_ByteStream *input_;
     AP4_File *input_file_;
     INPUTSTREAM_INFO info_;
@@ -114,7 +114,7 @@ private:
   void * decrypterModule_;
   SSD_DECRYPTER *decrypter_;
 
-  KodiDASHTree dashtree_;
+  KodiTree dashtree_;
 
   std::vector<STREAM*> streams_;
 
