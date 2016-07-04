@@ -97,7 +97,7 @@ public:
   std::uint16_t GetWidth()const { return width_; };
   std::uint16_t GetHeight()const { return height_; };
   AP4_CencSingleSampleDecrypter * GetSingleSampleDecryptor()const{ return single_sample_decryptor_; };
-  double GetTotalTime()const { return dashtree_.overallSeconds_; };
+  double GetTotalTime()const { return tree_.overallSeconds_; };
   double GetPTS()const { return last_pts_; };
   bool CheckChange(bool bSet = false){ bool ret = changed_; changed_ = bSet; return ret; };
   void SetVideoResolution(unsigned int w, unsigned int h) { width_ = w < maxwidth_ ? w : maxwidth_; height_ = h < maxheight_ ? h : maxheight_;};
@@ -114,7 +114,7 @@ private:
   void * decrypterModule_;
   SSD_DECRYPTER *decrypter_;
 
-  KodiTree dashtree_;
+  KodiTree tree_;
 
   std::vector<STREAM*> streams_;
 

@@ -1,8 +1,8 @@
 # inputstream.nxmsl (1.0.0)
 
-This is a dash mpd file addon for kodi's new InputStream Interface.
+This is an addon for kodi's new InputStream Interface.
 
-- this addon is part of the official kodi repository and part of each kodi installation
+- this addon is currently not part of the official kodi repository
 
 ##### Decrypting:
 Decrypting is not implemented. But it is prepared!  

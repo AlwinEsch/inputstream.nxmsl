@@ -119,11 +119,11 @@ struct addonstring
 Bento4 Streams
 ********************************************************/
 
-class AP4_DASHStream : public AP4_ByteStream
+class AP4_NXMSLStream : public AP4_ByteStream
 {
 public:
   // Constructor
-  AP4_DASHStream(manifest::Stream *s) :stream_(s){};
+  AP4_NXMSLStream(manifest::Stream *s) :stream_(s){};
 
   // AP4_ByteStream methods
   AP4_Result ReadPartial(void*    buffer,
@@ -673,13 +673,13 @@ Session::Session(const char *strURL, const char *strLicType, const char* strLicK
   {
     double val;
     fread(&val, sizeof(double), 1, f);
-    dashtree_.bandwidth_ = static_cast<uint32_t>(val * 8);
-    dashtree_.set_download_speed(val);
+    tree_.bandwidth_ = static_cast<uint32_t>(val * 8);
+    tree_.set_download_speed(val);
     fclose(f);
   }
   else
-    dashtree_.bandwidth_ = 4000000;
-  xbmc->Log(ADDON::LOG_DEBUG, "Initial bandwidth: %u ", dashtree_.bandwidth_);
+    tree_.bandwidth_ = 4000000;
+  xbmc->Log(ADDON::LOG_DEBUG, "Initial bandwidth: %u ", tree_.bandwidth_);
 
   int buf;
   xbmc->GetSetting("MAXRESOLUTION", (char*)&buf);
@@ -726,7 +726,7 @@ Session::~Session()
   FILE* f = fopen(fn.c_str(), "wb");
   if (f)
   {
-    double val(dashtree_.get_average_download_speed());
+    double val(tree_.get_average_download_speed());
     fwrite((const char*)&val, sizeof(double), 1, f);
     fclose(f);
   }
@@ -797,8 +797,8 @@ bool Session::initialize()
   // Get URN's wich are supported by this addon
   if (!license_type_.empty())
   {
-    GetSupportedDecrypterURN(dashtree_.adp_pssh_);
-    xbmc->Log(ADDON::LOG_DEBUG, "Supported URN: %s", dashtree_.adp_pssh_.first.c_str());
+    GetSupportedDecrypterURN(tree_.adp_pssh_);
+    xbmc->Log(ADDON::LOG_DEBUG, "Supported URN: %s", tree_.adp_pssh_.first.c_str());
   }
 
   // Open mpd file
@@ -808,16 +808,16 @@ bool Session::initialize()
     xbmc->Log(ADDON::LOG_ERROR, "Invalid mpdURL: / expected (%s)", mpdFileURL_.c_str());
     return false;
   }
-  dashtree_.base_url_ = std::string(mpdFileURL_.c_str(), (delim - mpdFileURL_.c_str()) + 1);
+  tree_.base_url_ = std::string(mpdFileURL_.c_str(), (delim - mpdFileURL_.c_str()) + 1);
 
-  if (!dashtree_.open(mpdFileURL_.c_str()) || dashtree_.empty())
+  if (!tree_.open(mpdFileURL_.c_str()) || tree_.empty())
   {
     xbmc->Log(ADDON::LOG_ERROR, "Could not open / parse mpdURL (%s)", mpdFileURL_.c_str());
     return false;
   }
-  xbmc->Log(ADDON::LOG_INFO, "Successfully parsed .mpd file. #Streams: %d Download speed: %0.4f Bytes/s", dashtree_.periods_[0]->adaptationSets_.size(), dashtree_.download_speed_);
+  xbmc->Log(ADDON::LOG_INFO, "Successfully parsed .mpd file. #Streams: %d Download speed: %0.4f Bytes/s", tree_.periods_[0]->adaptationSets_.size(), tree_.download_speed_);
 
-  if (dashtree_.encryptionState_ == manifest::Tree::ENCRYTIONSTATE_ENCRYPTED)
+  if (tree_.encryptionState_ == manifest::Tree::ENCRYTIONSTATE_ENCRYPTED)
   {
     xbmc->Log(ADDON::LOG_ERROR, "Unable to handle decryption. Unsupported!");
     return false;
@@ -838,12 +838,12 @@ bool Session::initialize()
     SAFE_DELETE(*b);
   streams_.clear();
 
-  while ((adp = dashtree_.GetAdaptationSet(i++)))
+  while ((adp = tree_.GetAdaptationSet(i++)))
   {
     size_t repId = manual_streams_ ? adp->repesentations_.size() : 0;
 
     do {
-      streams_.push_back(new STREAM(dashtree_, adp->type_));
+      streams_.push_back(new STREAM(tree_, adp->type_));
       STREAM &stream(*streams_.back());
       stream.stream_.prepare_stream(adp, width_, height_, min_bandwidth, max_bandwidth, repId);
 
@@ -872,19 +872,19 @@ bool Session::initialize()
   }
 
   // Try to initialize an SingleSampleDecryptor
-  if (dashtree_.encryptionState_)
+  if (tree_.encryptionState_)
   {
     AP4_DataBuffer init_data;
 
-    if (dashtree_.adp_pssh_.second == "FILE")
+    if (tree_.adp_pssh_.second == "FILE")
     {
-      std::string strkey(dashtree_.adp_pssh_.first.substr(9));
+      std::string strkey(tree_.adp_pssh_.first.substr(9));
       size_t pos;
       while ((pos = strkey.find('-')) != std::string::npos)
         strkey.erase(pos, 1);
       if (strkey.size() != 32)
       {
-        xbmc->Log(ADDON::LOG_ERROR, "Key system mismatch (%s)!", dashtree_.adp_pssh_.first.c_str());
+        xbmc->Log(ADDON::LOG_ERROR, "Key system mismatch (%s)!", tree_.adp_pssh_.first.c_str());
         return false;
       }
 
@@ -897,7 +897,7 @@ bool Session::initialize()
       stream->stream_.start_stream(0, width_, height_);
       stream->stream_.select_stream(true,false, stream->info_.m_pID>>16);
 
-      stream->input_ = new AP4_DASHStream(&stream->stream_);
+      stream->input_ = new AP4_NXMSLStream(&stream->stream_);
       stream->input_file_ = new AP4_File(*stream->input_, AP4_DefaultAtomFactory::Instance, true);
       AP4_Movie* movie = stream->input_file_->GetMovie();
       if (movie == NULL)
@@ -926,7 +926,7 @@ bool Session::initialize()
     {
       init_data.SetBufferSize(1024);
       unsigned int init_data_size(1024);
-      b64_decode(dashtree_.pssh_.second.data(), dashtree_.pssh_.second.size(), init_data.UseData(), init_data_size);
+      b64_decode(tree_.pssh_.second.data(), tree_.pssh_.second.size(), init_data.UseData(), init_data_size);
       init_data.SetDataSize(init_data_size);
     }
     return (single_sample_decryptor_ = CreateSingleSampleDecrypter(init_data))!=0;
@@ -1242,7 +1242,7 @@ extern "C" {
         session->CheckChange(true);
       }
 
-      stream->input_ = new AP4_DASHStream(&stream->stream_);
+      stream->input_ = new AP4_NXMSLStream(&stream->stream_);
       stream->input_file_ = new AP4_File(*stream->input_, AP4_DefaultAtomFactory::Instance, true);
       AP4_Movie* movie = stream->input_file_->GetMovie();
       if (movie == NULL)
