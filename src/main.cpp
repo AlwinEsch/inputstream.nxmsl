@@ -1183,17 +1183,15 @@ extern "C" {
     return iids;
   }
 
-  struct INPUTSTREAM_CAPABILITIES GetCapabilities()
+  void GetCapabilities(INPUTSTREAM_CAPABILITIES* caps)
   {
     xbmc->Log(ADDON::LOG_DEBUG, "GetCapabilities()");
-    INPUTSTREAM_CAPABILITIES caps;
-    caps.m_supportsIDemux = true;
-    caps.m_supportsIPosTime = false;
-    caps.m_supportsIDisplayTime = true;
-    caps.m_supportsSeek = true;
-    caps.m_supportsPause = true;
-    caps.m_supportsEnableAtPTS = true;
-    return caps;
+    caps->m_supportsIDemux = true;
+    caps->m_supportsIPosTime = false;
+    caps->m_supportsIDisplayTime = true;
+    caps->m_supportsSeek = true;
+    caps->m_supportsPause = true;
+    caps->m_supportsEnableAtPTS = true;
   }
 
   struct INPUTSTREAM_INFO GetStream(int streamid)
