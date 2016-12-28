@@ -5,7 +5,7 @@
   name="InputStream nxmsl"
   provider-name="peak3d">
   <requires>
-    <import addon="kodi.inputstream" version="1.0.8"/>
+    <import addon="kodi.instance.inputstream" version="@ADDON_INSTANCE_VERSION_INPUTSTREAM@"/>
   </requires>
   <extension
     point="kodi.inputstream"
